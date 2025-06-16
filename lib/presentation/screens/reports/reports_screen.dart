@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:andariegos_mobile/data/models/report.dart';
+import 'package:andariegos_mobile/data/services/report_service.dart';
 import 'package:andariegos_mobile/presentation/screens/reports/report_detail_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -11,55 +12,41 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<Report> _mockReports = [
-    Report(
-      id: '1',
-      eventId: '1',
-      eventName: 'Tour por La Candelaria',
-      description: 'El guía no se presentó a la hora acordada y no respondió a los mensajes',
-      reportDate: DateTime.now().subtract(const Duration(days: 2)),
-      reportedBy: 'Juan Pérez',
-      status: ReportStatus.pending,
-    ),
-    Report(
-      id: '2',
-      eventId: '2',
-      eventName: 'Visita al Museo del Oro',
-      description: 'El evento no cumplió con las expectativas anunciadas en la descripción',
-      reportDate: DateTime.now().subtract(const Duration(days: 1)),
-      reportedBy: 'María García',
-      status: ReportStatus.pending,
-    ),
-    Report(
-      id: '3',
-      eventId: '3',
-      eventName: 'Recorrido por Monserrate',
-      description: 'El precio no coincidía con el anunciado en la plataforma',
-      reportDate: DateTime.now(),
-      reportedBy: 'Carlos López',
-      status: ReportStatus.approved,
-      adminComment: 'Se ha contactado al organizador y se ha reembolsado la diferencia',
-      decisionDate: DateTime.now(),
-      decidedBy: 'Admin',
-    ),
-    Report(
-      id: '4',
-      eventId: '4',
-      eventName: 'Tour Gastronómico Chapinero',
-      description: 'El restaurante estaba cerrado y no se informó con anticipación',
-      reportDate: DateTime.now().subtract(const Duration(days: 3)),
-      reportedBy: 'Ana Martínez',
-      status: ReportStatus.rejected,
-      adminComment: 'El restaurante estaba abierto según registros y fotos del evento',
-      decisionDate: DateTime.now().subtract(const Duration(days: 1)),
-      decidedBy: 'Admin',
-    ),
-  ];
+  final ReportService _reportService = ReportService();
+  List<Report> _reports = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final reports = await _reportService.getAllReports();
+      
+      if (mounted) {
+        setState(() {
+          _reports = reports;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -69,12 +56,12 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
   }
 
   List<Report> get _pendingReports {
-    return _mockReports.where((report) => report.status == ReportStatus.pending).toList();
+    return _reports.where((report) => report.state == 'pending').toList();
   }
 
   List<Report> get _processedReports {
-    return _mockReports.where((report) => 
-      report.status == ReportStatus.approved || report.status == ReportStatus.rejected
+    return _reports.where((report) => 
+      report.state == 'accepted' || report.state == 'denied'
     ).toList();
   }
 
@@ -98,6 +85,10 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReports,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
               Navigator.pushReplacementNamed(context, '/login');
@@ -105,17 +96,48 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildReportsList(_pendingReports),
-          _buildReportsList(_processedReports),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Error al cargar los reportes',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadReports,
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildReportsList(_pendingReports),
+                    _buildReportsList(_processedReports),
+                  ],
+                ),
     );
   }
 
   Widget _buildReportsList(List<Report> reports) {
+    if (reports.isEmpty) {
+      return const Center(
+        child: Text('No hay reportes disponibles'),
+      );
+    }
+
     return ListView.builder(
       itemCount: reports.length,
       itemBuilder: (context, index) {
@@ -126,39 +148,27 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
             vertical: 8.0,
           ),
           child: ListTile(
-            title: Text(report.eventName),
+            title: Text('ID: ${report.id}'),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(report.description),
-                const SizedBox(height: 4),
-                Text(
-                  'Reportado por: ${report.reportedBy}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                Text(
-                  'Fecha: ${_formatDate(report.reportDate)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (report.adminComment != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Comentario: ${report.adminComment}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.secondary,
-                    ),
-                  ),
-                ],
+                Text('Evento: ${report.idEvent}'),
+                Text('Reportado por: ${report.idReporter}'),
+                Text('Descripción: ${report.description}'),
+                Text('Estado: ${report.state}'),
               ],
             ),
-            trailing: _buildStatusIcon(report.status),
-            onTap: () {
-              Navigator.push(
+            trailing: _buildStateIcon(report.state),
+            onTap: () async {
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ReportDetailScreen(report: report),
                 ),
               );
+              if (result == true) {
+                _loadReports();
+              }
             },
           ),
         );
@@ -166,18 +176,16 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildStatusIcon(ReportStatus status) {
-    switch (status) {
-      case ReportStatus.pending:
+  Widget _buildStateIcon(String state) {
+    switch (state) {
+      case 'pending':
         return const Icon(Icons.pending_actions, color: Colors.orange);
-      case ReportStatus.approved:
+      case 'accepted':
         return const Icon(Icons.check_circle, color: Colors.green);
-      case ReportStatus.rejected:
+      case 'denied':
         return const Icon(Icons.cancel, color: Colors.red);
+      default:
+        return const Icon(Icons.help, color: Colors.grey);
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 } 

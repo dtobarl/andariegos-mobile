@@ -1,31 +1,35 @@
 class Report {
   final String id;
-  final String eventId;
-  final String eventName;
+  final int idEvent;
+  final String idReporter;
+  final String state;
   final String description;
-  final DateTime reportDate;
-  final String reportedBy;
-  final ReportStatus status;
-  final String? adminComment;
-  final DateTime? decisionDate;
-  final String? decidedBy;
 
   Report({
     required this.id,
-    required this.eventId,
-    required this.eventName,
+    required this.idEvent,
+    required this.idReporter,
+    required this.state,
     required this.description,
-    required this.reportDate,
-    required this.reportedBy,
-    required this.status,
-    this.adminComment,
-    this.decisionDate,
-    this.decidedBy,
   });
-}
 
-enum ReportStatus {
-  pending,
-  approved,
-  rejected
-} 
+  factory Report.fromJson(Map<String, dynamic> json) {
+    return Report(
+      id: json['_id'] as String,
+      idEvent: json['id_event'] as int,
+      idReporter: json['id_reporter'] as String,
+      state: json['state'] as String,
+      description: json['description'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id_event': idEvent,
+      'id_reporter': idReporter,
+      'state': state,
+      'description': description,
+    };
+  }
+}

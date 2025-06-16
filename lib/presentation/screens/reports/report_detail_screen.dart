@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:andariegos_mobile/data/models/report.dart';
+import 'package:andariegos_mobile/data/services/report_service.dart';
 
-class ReportDetailScreen extends StatelessWidget {
+class ReportDetailScreen extends StatefulWidget {
   final Report report;
 
   const ReportDetailScreen({
@@ -10,107 +11,120 @@ class ReportDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
+
+class _ReportDetailScreenState extends State<ReportDetailScreen> {
+  final ReportService _reportService = ReportService();
+  bool _isLoading = false;
+  String? _error;
+
+  Future<void> _updateReportState(String newState) async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      await _reportService.updateReportState(widget.report, newState);
+
+      if (mounted) {
+        Navigator.pop(context, true); // Retornar true para indicar que se actualizó
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle del Reporte'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSection(
-              title: 'Evento',
-              content: report.eventName,
-              icon: Icons.event,
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'Descripción del Reporte',
-              content: report.description,
-              icon: Icons.description,
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'Reportado por',
-              content: report.reportedBy,
-              icon: Icons.person,
-            ),
-            const SizedBox(height: 16),
-            _buildSection(
-              title: 'Fecha del Reporte',
-              content: _formatDate(report.reportDate),
-              icon: Icons.calendar_today,
-            ),
-            if (report.status != ReportStatus.pending) ...[
-              const SizedBox(height: 16),
-              _buildSection(
-                title: 'Estado',
-                content: _getStatusText(report.status),
-                icon: _getStatusIcon(report.status),
-                iconColor: _getStatusColor(report.status),
-              ),
-              const SizedBox(height: 16),
-              _buildSection(
-                title: 'Comentario del Administrador',
-                content: report.adminComment ?? 'Sin comentarios',
-                icon: Icons.comment,
-              ),
-              const SizedBox(height: 16),
-              _buildSection(
-                title: 'Decidido por',
-                content: report.decidedBy ?? 'N/A',
-                icon: Icons.admin_panel_settings,
-              ),
-              if (report.decisionDate != null) ...[
-                const SizedBox(height: 16),
-                _buildSection(
-                  title: 'Fecha de Decisión',
-                  content: _formatDate(report.decisionDate!),
-                  icon: Icons.update,
-                ),
-              ],
-            ],
-            if (report.status == ReportStatus.pending) ...[
-              const SizedBox(height: 32),
-              Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implementar aprobación
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Aprobar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
+                  _buildSection(
+                    title: 'ID',
+                    content: widget.report.id,
+                    icon: Icons.confirmation_number,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implementar rechazo
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.cancel),
-                      label: const Text('Rechazar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
+                  const SizedBox(height: 16),
+                  _buildSection(
+                    title: 'Evento',
+                    content: widget.report.idEvent.toString(),
+                    icon: Icons.event,
                   ),
+                  const SizedBox(height: 16),
+                  _buildSection(
+                    title: 'Reportado por',
+                    content: widget.report.idReporter,
+                    icon: Icons.person,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSection(
+                    title: 'Descripción',
+                    content: widget.report.description,
+                    icon: Icons.description,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSection(
+                    title: 'Estado',
+                    content: widget.report.state,
+                    icon: _getStateIcon(widget.report.state),
+                    iconColor: _getStateColor(widget.report.state),
+                  ),
+                  if (widget.report.state == 'pending') ...[
+                    const SizedBox(height: 32),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _updateReportState('accepted'),
+                            icon: const Icon(Icons.check_circle),
+                            label: const Text('Aceptar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _updateReportState('denied'),
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Denegar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_error != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
-            ],
-          ],
-        ),
-      ),
+            ),
     );
   }
 
@@ -150,40 +164,29 @@ class ReportDetailScreen extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _getStatusText(ReportStatus status) {
-    switch (status) {
-      case ReportStatus.pending:
-        return 'Pendiente';
-      case ReportStatus.approved:
-        return 'Aprobado';
-      case ReportStatus.rejected:
-        return 'Rechazado';
-    }
-  }
-
-  IconData _getStatusIcon(ReportStatus status) {
-    switch (status) {
-      case ReportStatus.pending:
+  IconData _getStateIcon(String state) {
+    switch (state) {
+      case 'pending':
         return Icons.pending_actions;
-      case ReportStatus.approved:
+      case 'accepted':
         return Icons.check_circle;
-      case ReportStatus.rejected:
+      case 'denied':
         return Icons.cancel;
+      default:
+        return Icons.help;
     }
   }
 
-  Color _getStatusColor(ReportStatus status) {
-    switch (status) {
-      case ReportStatus.pending:
+  Color _getStateColor(String state) {
+    switch (state) {
+      case 'pending':
         return Colors.orange;
-      case ReportStatus.approved:
+      case 'accepted':
         return Colors.green;
-      case ReportStatus.rejected:
+      case 'denied':
         return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 } 
