@@ -68,13 +68,23 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.login(
+      final result = await _authService.login(
         _emailController.text,
         _passwordController.text,
       );
       
       if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.reports);
+        if (result['isAdmin'] == true) {
+          Navigator.pushReplacementNamed(context, AppRoutes.reports);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Acceso denegado. Se requieren permisos de administrador.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          await _authService.logout();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -163,8 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese su contraseña';
                       }
-                      if (value.length < 6) {
-                        return 'La contraseña debe tener al menos 6 caracteres';
+                      if (value.length < 5) {
+                        return 'La contraseña debe tener al menos 5 caracteres';
                       }
                       return null;
                     },

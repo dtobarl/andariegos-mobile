@@ -33,10 +33,10 @@ dependencies:
   # Estado y gestión de datos
   provider: ^6.1.1
   shared_preferences: ^2.2.2
+  jwt_decoder: ^2.0.1
   
   # Red y autenticación
   dio: ^5.4.0
-  jwt_decoder: ^2.0.1
   
   # UI
   flutter_svg: ^2.0.9
