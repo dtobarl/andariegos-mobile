@@ -10,6 +10,10 @@ class AuthService {
   static const String _userPasswordKey = 'user_password';
   static const String _isLoggedInKey = 'is_logged_in';
   static const String _isAdminKey = 'is_admin';
+  static const String _loginTimestampKey = 'login_timestamp';
+  
+  // Tiempo de sesión en minutos (30 minutos por defecto)
+  static const int _sessionTimeoutMinutes = 30;
   
   // URL del gateway - se ajusta según la plataforma
   static String get _baseUrl {
@@ -19,17 +23,34 @@ class AuthService {
         return 'http://10.0.2.2:7080/api/auth';
       }
       // Para dispositivo físico Android
-      return 'http://192.168.0.15:7080/api/auth'; // Cambia esto por la IP de tu computadora
+      const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
+      print('=== AUTH SERVICE DEBUG ===');
+      print('PC_IP from environment: $pcIp');
+      print('Platform: ${Platform.operatingSystem}');
+      print('Is emulator: ${Platform.environment.containsKey('ANDROID_EMULATOR')}');
+      print('==========================');
+      return 'http://$pcIp:7080/api/auth';
     } else if (Platform.isIOS) {
       // Para iOS simulator
       if (Platform.environment.containsKey('IOS_SIMULATOR')) {
         return 'http://localhost:7080/api/auth';
       }
       // Para dispositivo físico iOS
-      return 'http://192.168.0.15:7080/api/auth'; // Cambia esto por la IP de tu computadora
+      const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
+      print('=== AUTH SERVICE DEBUG ===');
+      print('PC_IP from environment: $pcIp');
+      print('Platform: ${Platform.operatingSystem}');
+      print('Is simulator: ${Platform.environment.containsKey('IOS_SIMULATOR')}');
+      print('==========================');
+      return 'http://$pcIp:7080/api/auth';
     } else {
       // Para otros dispositivos
-      return 'http://192.168.0.15:7080/api/auth'; // Cambia esto por la IP de tu computadora
+      const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
+      print('=== AUTH SERVICE DEBUG ===');
+      print('PC_IP from environment: $pcIp');
+      print('Platform: ${Platform.operatingSystem}');
+      print('==========================');
+      return 'http://$pcIp:7080/api/auth';
     }
   }
 
@@ -62,12 +83,14 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      print('Intentando login con: $email');
+      print('=== INICIO DE LOGIN ===');
+      print('Email: $email');
       print('URL de la petición: ${_dio.options.baseUrl}/login');
       
+      // El gateway espera un formato REST que luego convierte a GraphQL
       final requestData = {
         'identifier': email.trim(),
-        'password': password.trim(),
+        'password': password.trim()
       };
       
       print('Datos de la solicitud: $requestData');
@@ -87,7 +110,10 @@ class AuthService {
         ),
       );
 
+      print('Status Code: ${response.statusCode}');
       print('Respuesta del servidor: ${response.data}');
+      print('Headers de respuesta: ${response.headers}');
+      print('=== FIN DE LOGIN ===');
       
       if (response.statusCode == 200) {
         final data = response.data;
@@ -96,6 +122,7 @@ class AuthService {
         await _prefs.setString(_userEmailKey, email);
         await _prefs.setString(_userPasswordKey, password);
         await _prefs.setBool(_isLoggedInKey, true);
+        await _prefs.setInt(_loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
         
         // Decodificar el token JWT para obtener los roles
         final token = data['access_token'];
@@ -112,8 +139,8 @@ class AuthService {
         return {
           'success': true,
           'access_token': data['access_token'],
-          'user': data['user'],
-          'userId': data['user']['_id'],
+          'userId': data['user']['userId'],
+          'isAdmin': isAdmin,
         };
       } else {
         final errorMessage = response.data['error'] ?? 'Error desconocido';
@@ -136,6 +163,7 @@ class AuthService {
   Future<void> logout() async {
     await _prefs.setBool(_isLoggedInKey, false);
     await _prefs.setBool(_isAdminKey, false);
+    await _prefs.remove(_loginTimestampKey);
   }
 
   bool isLoggedIn() {
@@ -144,6 +172,36 @@ class AuthService {
 
   bool isAdmin() {
     return _prefs.getBool(_isAdminKey) ?? false;
+  }
+
+  bool isSessionExpired() {
+    final loginTimestamp = _prefs.getInt(_loginTimestampKey);
+    if (loginTimestamp == null) return true;
+    
+    final loginTime = DateTime.fromMillisecondsSinceEpoch(loginTimestamp);
+    final currentTime = DateTime.now();
+    final difference = currentTime.difference(loginTime);
+    
+    return difference.inMinutes >= _sessionTimeoutMinutes;
+  }
+
+  Future<void> refreshSession() async {
+    await _prefs.setInt(_loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  int getSessionTimeoutMinutes() {
+    return _sessionTimeoutMinutes;
+  }
+
+  int getRemainingMinutes() {
+    final loginTimestamp = _prefs.getInt(_loginTimestampKey);
+    if (loginTimestamp == null) return 0;
+    
+    final loginTime = DateTime.fromMillisecondsSinceEpoch(loginTimestamp);
+    final currentTime = DateTime.now();
+    final difference = currentTime.difference(loginTime);
+    
+    return _sessionTimeoutMinutes - difference.inMinutes;
   }
 
   String? getStoredEmail() {

@@ -6,7 +6,14 @@ class ReportService {
   // Para desarrollo local
   //static const String _baseUrl = 'http://10.0.2.2:5000/api/reports'; // Para emulador Android
   //static const String _baseUrl = 'http://localhost:5000/api/reports'; // Para iOS y Windows (En Android Studio, la opción Windows (Desktop))
-  static const String _baseUrl = 'http://192.168.0.15:5000/api/reports'; // Para desde Cel de Dan en PC Dan
+  static String get _baseUrl {
+    const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
+    print('=== REPORT SERVICE DEBUG ===');
+    print('PC_IP from environment: $pcIp');
+    print('Full URL: http://$pcIp:7080/api/report');
+    print('============================');
+    return 'http://$pcIp:7080/api/report';
+  }
 
 
   ReportService() : _dio = Dio() {
@@ -21,12 +28,26 @@ class ReportService {
 
   Future<List<Report>> getAllReports() async {
     try {
-      final response = await _dio.get('/');
-      print(response.data);
-      return (response.data as List)
-          .map((json) => Report.fromJson(json))
-          .toList();
+      final response = await _dio.get('');
+      print('Response status: ${response.statusCode}');
+      print('Response data: ${response.data}');
+      print('Response data type: ${response.data.runtimeType}');
+      
+      if (response.data is List) {
+        return (response.data as List)
+            .map((json) {
+              print('Processing report: $json');
+              return Report.fromJson(json);
+            })
+            .toList();
+      } else {
+        print('Unexpected response format: ${response.data}');
+        return [];
+      }
     } on DioException catch (e) {
+      print('DioException: ${e.message}');
+      print('Response: ${e.response?.data}');
+      print('Status: ${e.response?.statusCode}');
       if (e.type == DioExceptionType.connectionTimeout) {
         throw Exception('Error de conexión: No se pudo conectar al servidor. Verifica que:\n'
             '1. El servidor esté corriendo (python run.py)\n'
@@ -35,6 +56,7 @@ class ReportService {
       }
       throw Exception('Error al obtener reportes: ${e.message}');
     } catch (e) {
+      print('Unexpected error: $e');
       throw Exception('Error inesperado: $e');
     }
   }
@@ -52,7 +74,7 @@ class ReportService {
 
   Future<String> createReport(Report report) async {
     try {
-      final response = await _dio.post('/', data: report.toJson());
+      final response = await _dio.post('', data: report.toJson());
       return response.data['id'];
     } on DioException catch (e) {
       throw Exception('Error al crear el reporte: ${e.message}');

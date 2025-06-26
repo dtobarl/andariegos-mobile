@@ -4,6 +4,7 @@ class Report {
   final String idReporter;
   final String state;
   final String description;
+  final String? eventName;
 
   Report({
     required this.id,
@@ -11,6 +12,7 @@ class Report {
     required this.idReporter,
     required this.state,
     required this.description,
+    this.eventName,
   });
 
   factory Report.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class Report {
       idReporter: json['id_reporter'] as String,
       state: json['state'] as String,
       description: json['description'] as String,
+      eventName: json['eventName'] as String?,
     );
   }
 
@@ -30,6 +33,7 @@ class Report {
       'id_reporter': idReporter,
       'state': state,
       'description': description,
+      'eventName': eventName,
     };
   }
 }

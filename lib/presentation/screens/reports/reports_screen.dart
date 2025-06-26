@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:andariegos_mobile/data/models/report.dart';
 import 'package:andariegos_mobile/data/services/report_service.dart';
+import 'package:andariegos_mobile/data/services/auth_service.dart';
 import 'package:andariegos_mobile/presentation/screens/reports/report_detail_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -13,15 +16,60 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ReportService _reportService = ReportService();
+  AuthService? _authService;
   List<Report> _reports = [];
   bool _isLoading = true;
   String? _error;
+  Timer? _sessionTimer;
+  int _remainingMinutes = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _initAuthService();
     _loadReports();
+  }
+
+  Future<void> _initAuthService() async {
+    final prefs = await SharedPreferences.getInstance();
+    _authService = AuthService(prefs);
+    if (mounted) {
+      _startSessionTimer();
+    }
+  }
+
+  Future<void> _logout() async {
+    await _authService?.logout();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  void _startSessionTimer() {
+    if (_authService == null) return;
+    _updateRemainingTime();
+    _sessionTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      _updateRemainingTime();
+    });
+  }
+
+  void _updateRemainingTime() {
+    if (mounted && _authService != null) {
+      setState(() {
+        _remainingMinutes = _authService!.getRemainingMinutes();
+      });
+      
+      // Si la sesión expiró, hacer logout automático
+      if (_remainingMinutes <= 0) {
+        _logout();
+      }
+    }
+  }
+
+  void _stopSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = null;
   }
 
   Future<void> _loadReports() async {
@@ -52,6 +100,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
   @override
   void dispose() {
     _tabController.dispose();
+    _stopSessionTimer();
     super.dispose();
   }
 
@@ -84,15 +133,31 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
           ],
         ),
         actions: [
+          // Mostrar tiempo restante de sesión
+          if (_authService != null && _remainingMinutes > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: _remainingMinutes <= 5 ? Colors.red : Colors.orange,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_remainingMinutes}m',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadReports,
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              Navigator.pushReplacementNamed(context, '/login');
-            },
+            onPressed: _logout,
           ),
         ],
       ),
@@ -152,7 +217,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Evento: ${report.idEvent}'),
+                Text('Evento: ${report.eventName ?? 'ID: ${report.idEvent}'}'),
                 Text('Reportado por: ${report.idReporter}'),
                 Text('Descripción: ${report.description}'),
                 Text('Estado: ${report.state}'),

@@ -63,6 +63,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     if (_authService.isLoggedIn()) {
+      if (_authService.isSessionExpired()) {
+        await _authService.logout();
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sesión expirada. Por favor, inicia sesión nuevamente.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
       if (_authService.isAdmin()) {
         Navigator.pushReplacementNamed(context, AppRoutes.reports);
       } else {
