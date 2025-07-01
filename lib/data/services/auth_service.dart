@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'dart:io' show Platform;
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'dart:io';
 
 class AuthService {
   final SharedPreferences _prefs;
@@ -79,6 +80,12 @@ class AuthService {
         print('DIO LOG: $object');
       },
     ));
+
+    // Permitir certificados self-signed solo en desarrollo
+    (_dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (client) {
+      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      return client;
+    };
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
