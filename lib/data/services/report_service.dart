@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:andariegos_mobile/data/models/report.dart';
 import 'dart:io';
 
@@ -26,7 +27,7 @@ class ReportService {
     _dio.options.receiveTimeout = const Duration(seconds: 10);
     _dio.options.sendTimeout = const Duration(seconds: 10);
     // Permitir certificados self-signed solo en desarrollo
-    (_dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (client) {
+    (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate = (client) {
       client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
       return client;
     };

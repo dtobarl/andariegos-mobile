@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'dart:io' show Platform;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'dart:io';
+import 'package:dio/io.dart';
 
 class AuthService {
   final SharedPreferences _prefs;
@@ -82,7 +83,7 @@ class AuthService {
     ));
 
     // Permitir certificados self-signed solo en desarrollo
-    (_dio.httpClientAdapter as DefaultHttpClientAdapter).onHttpClientCreate = (client) {
+    (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate = (client) {
       client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
       return client;
     };
