@@ -12,9 +12,9 @@ class ReportService {
     const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
     print('=== REPORT SERVICE DEBUG ===');
     print('PC_IP from environment: $pcIp');
-    print('Full URL: http://$pcIp:7080/api/report');
+    print('Full URL: http://$pcIp:8080/api/report');
     print('============================');
-    return 'http://$pcIp:7080/api/report';
+    return 'http://$pcIp:8080/api/report';
   }
 
 

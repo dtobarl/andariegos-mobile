@@ -22,7 +22,7 @@ class AuthService {
     if (Platform.isAndroid) {
       // Para emulador Android
       if (Platform.environment.containsKey('ANDROID_EMULATOR')) {
-        return 'http://10.0.2.2:7080/api/auth';
+        return 'http://10.0.2.2:8080/api/auth';
       }
       // Para dispositivo físico Android
       const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
@@ -31,11 +31,11 @@ class AuthService {
       print('Platform: ${Platform.operatingSystem}');
       print('Is emulator: ${Platform.environment.containsKey('ANDROID_EMULATOR')}');
       print('==========================');
-      return 'http://$pcIp:7080/api/auth';
+      return 'http://$pcIp:8080/api/auth';
     } else if (Platform.isIOS) {
       // Para iOS simulator
       if (Platform.environment.containsKey('IOS_SIMULATOR')) {
-        return 'http://localhost:7080/api/auth';
+        return 'http://localhost:8080/api/auth';
       }
       // Para dispositivo físico iOS
       const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
@@ -44,7 +44,7 @@ class AuthService {
       print('Platform: ${Platform.operatingSystem}');
       print('Is simulator: ${Platform.environment.containsKey('IOS_SIMULATOR')}');
       print('==========================');
-      return 'http://$pcIp:7080/api/auth';
+      return 'http://$pcIp:8080/api/auth';
     } else {
       // Para otros dispositivos
       const pcIp = String.fromEnvironment('PC_IP', defaultValue: '192.168.0.17');
@@ -52,7 +52,7 @@ class AuthService {
       print('PC_IP from environment: $pcIp');
       print('Platform: ${Platform.operatingSystem}');
       print('==========================');
-      return 'http://$pcIp:7080/api/auth';
+      return 'http://$pcIp:8080/api/auth';
     }
   }
 
